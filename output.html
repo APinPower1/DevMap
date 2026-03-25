@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>DevMap — Visual Codebase Explorer</title>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;600&family=Syne:wght@400;600;700&display=swap" rel="stylesheet"/>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --bg: #0a0a0f; --surface: #111118; --surface2: #1a1a24;
+    --border: rgba(255,255,255,0.07); --text: #e8e8f0; --muted: #666680;
+    --accent: #7c6aff; --accent2: #40e0c8;
+  }
+  body { background: var(--bg); color: var(--text); font-family: 'JetBrains Mono', monospace; height: 100vh; overflow: hidden; display: flex; flex-direction: column; }
+  header { display: flex; align-items: center; justify-content: space-between; padding: 14px 24px; border-bottom: 1px solid var(--border); background: var(--surface); z-index: 10; flex-shrink: 0; }
+  .logo { display: flex; align-items: center; gap: 10px; }
+  .logo-mark { width: 28px; height: 28px; background: var(--accent); border-radius: 6px; display: flex; align-items: center; justify-content: center; font-size: 14px; font-weight: 600; color: white; font-family: 'Syne', sans-serif; }
+  .logo-text { font-family: 'Syne', sans-serif; font-weight: 700; font-size: 16px; letter-spacing: -0.3px; }
+  .logo-text span { color: var(--accent); }
+  .stats { display: flex; gap: 20px; font-size: 11px; color: var(--muted); }
+  .stat strong { color: var(--text); margin-right: 4px; }
+  .legend { display: flex; gap: 14px; font-size: 11px; color: var(--muted); align-items: center; }
+  .legend-item { display: flex; align-items: center; gap: 5px; }
+  .legend-dot { width: 8px; height: 8px; border-radius: 50%; }
+  .main { display: flex; flex: 1; overflow: hidden; }
+  #graph { flex: 1; cursor: grab; }
+  #graph:active { cursor: grabbing; }
+  .panel { width: 260px; background: var(--surface); border-left: 1px solid var(--border); display: flex; flex-direction: column; flex-shrink: 0; }
+  .panel-header { padding: 16px 18px 12px; border-bottom: 1px solid var(--border); font-size: 10px; color: var(--muted); text-transform: uppercase; letter-spacing: 1.5px; }
+  .panel-body { padding: 18px; flex: 1; }
+  .panel-empty { color: var(--muted); font-size: 12px; line-height: 1.7; margin-top: 4px; }
+  .node-name { font-size: 14px; font-weight: 500; color: var(--text); word-break: break-all; margin-bottom: 6px; }
+  .node-type { font-size: 11px; color: var(--muted); margin-bottom: 16px; }
+  .fn-label { font-size: 10px; text-transform: uppercase; letter-spacing: 1.2px; color: var(--muted); margin-bottom: 8px; }
+  .fn-list { display: flex; flex-direction: column; gap: 5px; }
+  .fn-item { font-size: 12px; color: var(--accent2); background: rgba(64,224,200,0.07); padding: 5px 10px; border-radius: 4px; border-left: 2px solid var(--accent2); }
+  .fn-none { font-size: 12px; color: var(--muted); font-style: italic; }
+  .deps-label { font-size: 10px; text-transform: uppercase; letter-spacing: 1.2px; color: var(--muted); margin: 16px 0 8px; }
+  .dep-item { font-size: 12px; color: var(--muted); padding: 4px 0; border-bottom: 1px solid var(--border); display: flex; align-items: center; gap: 6px; }
+  .dep-arrow { color: var(--accent); }
+  .hint { position: fixed; bottom: 18px; left: 50%; transform: translateX(-50%); background: var(--surface2); border: 1px solid var(--border); border-radius: 20px; padding: 6px 16px; font-size: 11px; color: var(--muted); pointer-events: none; transition: opacity 1s ease; }
+  .link { stroke: rgba(255,255,255,0.12); stroke-width: 1.5px; fill: none; }
+  .link.highlighted { stroke: #7c6aff; stroke-width: 2px; stroke-opacity: 0.8; }
+</style>
+</head>
+<body>
+<header>
+  <div class="logo">
+    <div class="logo-mark">D</div>
+    <div class="logo-text">Dev<span>Map</span></div>
+  </div>
+  <div class="stats">
+    <div class="stat"><strong id="stat-files">0</strong> files</div>
+    <div class="stat"><strong id="stat-edges">0</strong> dependencies</div>
+  </div>
+  <div class="legend">
+    <div class="legend-item"><div class="legend-dot" style="background:#7c6aff"></div>.py</div>
+    <div class="legend-item"><div class="legend-dot" style="background:#f7c948"></div>.js</div>
+    <div class="legend-item"><div class="legend-dot" style="background:#40a8f5"></div>.ts</div>
+    <div class="legend-item"><div class="legend-dot" style="background:#888"></div>other</div>
+  </div>
+</header>
+<div class="main">
+  <svg id="graph"></svg>
+  <div class="panel">
+    <div class="panel-header">Inspector</div>
+    <div class="panel-body">
+      <div class="panel-empty" id="panel-empty">Click any node to inspect it.</div>
+      <div id="panel-content" style="display:none">
+        <div class="node-name" id="p-name"></div>
+        <div class="node-type" id="p-type"></div>
+        <div class="fn-label">Functions &amp; Classes</div>
+        <div class="fn-list" id="p-fns"></div>
+        <div class="deps-label">Imports From</div>
+        <div id="p-deps"></div>
+      </div>
+    </div>
+  </div>
+</div>
+<div class="hint" id="hint">Scroll to zoom · Drag to pan · Click nodes to inspect</div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.8.5/d3.min.js"></script>
+<script>
+const GRAPH_DATA = {"nodes": [{"id": "analyzer.py", "functions": ["analyze"], "size": 1}, {"id": "graph_builder.py", "functions": ["build_graph"], "size": 1}, {"id": "main.py", "functions": ["main"], "size": 1}, {"id": "test_analyzer.py", "functions": [], "size": 1}], "edges": [{"source": "main.py", "target": "graph_builder.py"}, {"source": "main.py", "target": "analyzer.py"}, {"source": "test_analyzer.py", "target": "analyzer.py"}]};
+
+document.getElementById('stat-files').textContent = GRAPH_DATA.nodes.length;
+document.getElementById('stat-edges').textContent = GRAPH_DATA.edges.length;
+setTimeout(() => { document.getElementById('hint').style.opacity = '0'; }, 4000);
+
+function nodeColor(id) {
+  if (id.endsWith('.py')) return '#7c6aff';
+  if (id.endsWith('.js')) return '#f7c948';
+  if (id.endsWith('.ts')) return '#40a8f5';
+  return '#888';
+}
+function nodeRadius(size) { return Math.max(18, Math.min(40, 14 + size * 5)); }
+function fileType(id) {
+  const ext = id.split('.').pop();
+  return { py: 'Python module', js: 'JavaScript module', ts: 'TypeScript module' }[ext] || 'Source file';
+}
+
+const svg = d3.select('#graph');
+const container = svg.append('g');
+
+svg.call(d3.zoom().scaleExtent([0.2, 4]).on('zoom', e => container.attr('transform', e.transform)));
+
+const defs = svg.append('defs');
+function addMarker(id, color) {
+  defs.append('marker').attr('id', id).attr('viewBox', '0 -5 10 10').attr('refX', 10).attr('markerWidth', 6).attr('markerHeight', 6).attr('orient', 'auto')
+    .append('path').attr('d', 'M0,-5L10,0L0,5').attr('fill', color);
+}
+addMarker('arrow', 'rgba(255,255,255,0.18)');
+addMarker('arrow-hl', '#7c6aff');
+
+const nodes = GRAPH_DATA.nodes.map(d => ({...d}));
+const edges = GRAPH_DATA.edges.map(d => ({...d}));
+
+const simulation = d3.forceSimulation(nodes)
+  .force('link', d3.forceLink(edges).id(d => d.id).distance(120))
+  .force('charge', d3.forceManyBody().strength(-350))
+  .force('center', d3.forceCenter(0, 0))
+  .force('collision', d3.forceCollide().radius(d => nodeRadius(d.size) + 12));
+
+const link = container.append('g').selectAll('line').data(edges).join('line')
+  .attr('class', 'link').attr('marker-end', 'url(#arrow)');
+
+const node = container.append('g').selectAll('g').data(nodes).join('g')
+  .style('cursor', 'pointer')
+  .call(d3.drag()
+    .on('start', (e, d) => { if (!e.active) simulation.alphaTarget(0.3).restart(); d.fx = d.x; d.fy = d.y; })
+    .on('drag',  (e, d) => { d.fx = e.x; d.fy = e.y; })
+    .on('end',   (e, d) => { if (!e.active) simulation.alphaTarget(0); d.fx = null; d.fy = null; }))
+  .on('click', (e, d) => { e.stopPropagation(); selectNode(d); });
+
+node.append('circle').attr('r', d => nodeRadius(d.size))
+  .attr('fill', d => nodeColor(d.id) + '22').attr('stroke', d => nodeColor(d.id)).attr('stroke-width', 1.5);
+node.append('circle').attr('r', d => nodeRadius(d.size) * 0.35)
+  .attr('fill', d => nodeColor(d.id)).attr('opacity', 0.7);
+node.append('text').text(d => d.id.split('/').pop())
+  .attr('text-anchor', 'middle').attr('dy', d => nodeRadius(d.size) + 14)
+  .attr('fill', '#a0a0b8').attr('font-size', '11px').attr('font-family', "'JetBrains Mono', monospace");
+
+svg.on('click', () => deselectNode());
+
+simulation.on('tick', () => {
+  link
+    .attr('x1', d => d.source.x).attr('y1', d => d.source.y)
+    .attr('x2', d => { const dx = d.target.x - d.source.x, dy = d.target.y - d.source.y, dist = Math.sqrt(dx*dx+dy*dy)||1; return d.target.x - (dx/dist)*(nodeRadius(d.target.size)+8); })
+    .attr('y2', d => { const dx = d.target.x - d.source.x, dy = d.target.y - d.source.y, dist = Math.sqrt(dx*dx+dy*dy)||1; return d.target.y - (dy/dist)*(nodeRadius(d.target.size)+8); });
+  node.attr('transform', d => `translate(${d.x},${d.y})`);
+});
+
+simulation.on('end', () => {
+  const w = svg.node().clientWidth, h = svg.node().clientHeight;
+  const b = container.node().getBBox();
+  const scale = Math.min(0.85, Math.min(w/b.width, h/b.height)*0.85);
+  const tx = w/2 - scale*(b.x+b.width/2), ty = h/2 - scale*(b.y+b.height/2);
+  svg.transition().duration(600).call(d3.zoom().transform, d3.zoomIdentity.translate(tx,ty).scale(scale));
+});
+
+function selectNode(d) {
+  document.getElementById('panel-empty').style.display = 'none';
+  document.getElementById('panel-content').style.display = 'block';
+  document.getElementById('p-name').textContent = d.id;
+  document.getElementById('p-type').textContent = fileType(d.id);
+  const fnList = document.getElementById('p-fns');
+  fnList.innerHTML = '';
+  (d.functions && d.functions.length > 0 ? d.functions : []).forEach(fn => {
+    const el = document.createElement('div'); el.className = 'fn-item'; el.textContent = fn + '()'; fnList.appendChild(el);
+  });
+  if (!d.functions || d.functions.length === 0) fnList.innerHTML = '<div class="fn-none">No functions detected</div>';
+  const depList = document.getElementById('p-deps');
+  depList.innerHTML = '';
+  const out = edges.filter(e => (e.source.id||e.source) === d.id);
+  out.length > 0 ? out.forEach(e => {
+    const el = document.createElement('div'); el.className = 'dep-item';
+    el.innerHTML = `<span class="dep-arrow">→</span>${e.target.id||e.target}`; depList.appendChild(el);
+  }) : (depList.innerHTML = '<div class="fn-none">No dependencies</div>');
+  link.attr('class', e => (e.source.id||e.source)===d.id||(e.target.id||e.target)===d.id ? 'link highlighted' : 'link')
+    .attr('marker-end', e => (e.source.id||e.source)===d.id ? 'url(#arrow-hl)' : 'url(#arrow)');
+  node.select('circle:first-child')
+    .attr('stroke-width', n => n.id===d.id ? 2.5 : 1.5)
+    .attr('fill', n => nodeColor(n.id) + (n.id===d.id ? '44' : '22'));
+}
+
+function deselectNode() {
+  document.getElementById('panel-empty').style.display = 'block';
+  document.getElementById('panel-content').style.display = 'none';
+  link.attr('class', 'link').attr('marker-end', 'url(#arrow)');
+  node.select('circle:first-child').attr('stroke-width', 1.5).attr('fill', d => nodeColor(d.id)+'22');
+}
+</script>
+</body>
+</html>
