@@ -2,6 +2,7 @@ import os
 import ast
 import re
 
+
 def analyze(folder_path: str) -> dict:
     result = {
         "files": [],
@@ -13,10 +14,14 @@ def analyze(folder_path: str) -> dict:
         for file in files:
             if file.endswith((".py", ".js", ".ts")):
                 file_path = os.path.join(root, file)
-                result["files"].append(file)
+
+                # FIX 1: use relative path as the canonical key to avoid
+                # collisions between same-named files in different folders
+                rel_path = os.path.relpath(file_path, folder_path)
+                result["files"].append(rel_path)
 
                 functions = []
-                imports = []
+                imports   = []
 
                 try:
                     with open(file_path, "r", encoding="utf-8") as f:
@@ -27,58 +32,46 @@ def analyze(folder_path: str) -> dict:
                         tree = ast.parse(content)
 
                         for node in ast.walk(tree):
-                            # Functions
                             if isinstance(node, ast.FunctionDef):
                                 functions.append(node.name)
-
-                            # Classes
                             elif isinstance(node, ast.ClassDef):
                                 functions.append(node.name)
-
-                            # Imports
                             elif isinstance(node, ast.Import):
                                 for alias in node.names:
                                     imports.append(alias.name.split('.')[0])
-
                             elif isinstance(node, ast.ImportFrom):
                                 if node.module:
                                     imports.append(node.module.split('.')[0])
 
                     # ---- JS / TS FILES ----
                     else:
-                        # Functions (simple regex-based detection)
                         func_patterns = [
                             r'function\s+(\w+)',
                             r'(\w+)\s*=\s*\(.*?\)\s*=>',
                             r'(\w+)\s*=\s*function'
                         ]
-
                         for pattern in func_patterns:
-                            matches = re.findall(pattern, content)
-                            functions.extend(matches)
+                            functions.extend(re.findall(pattern, content))
 
-                        # Classes
-                        class_matches = re.findall(r'class\s+(\w+)', content)
-                        functions.extend(class_matches)
+                        functions.extend(re.findall(r'class\s+(\w+)', content))
 
-                        # Imports
                         import_patterns = [
                             r'import\s+.*?\s+from\s+[\'"](.+?)[\'"]',
                             r'require\([\'"](.+?)[\'"]\)'
                         ]
-
                         for pattern in import_patterns:
-                            matches = re.findall(pattern, content)
-                            for m in matches:
-                                imports.append(m.split('/')[0])
+                            for m in re.findall(pattern, content):
+                                # FIX 2: strip ./ and ../ so relative imports
+                                # like "./utils" become "utils" (resolvable)
+                                cleaned = re.sub(r'^\.{1,2}/', '', m)
+                                imports.append(cleaned.split('/')[0])
 
-                    # Remove duplicates
-                    result["functions"][file] = list(set(functions))
-                    result["imports"][file] = list(set(imports))
+                # FIX 3: preserve source order while deduplicating
+                    result["functions"][rel_path] = list(dict.fromkeys(functions))
+                    result["imports"][rel_path]   = list(dict.fromkeys(imports))
 
                 except Exception:
-                    # In case of parsing errors, still include file
-                    result["functions"][file] = []
-                    result["imports"][file] = []
+                    result["functions"][rel_path] = []
+                    result["imports"][rel_path]   = []
 
     return result
