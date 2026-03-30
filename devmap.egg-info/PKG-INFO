@@ -1,0 +1,11 @@
+Metadata-Version: 2.4
+Name: devmap
+Version: 1.0.0
+Summary: Visual Codebase Explorer — turns any project into an interactive dependency graph
+Author: Your Team Name
+Requires-Python: >=3.8
+Requires-Dist: networkx
+Dynamic: author
+Dynamic: requires-dist
+Dynamic: requires-python
+Dynamic: summary

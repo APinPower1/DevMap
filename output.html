@@ -81,7 +81,7 @@
 <div class="hint" id="hint">Scroll to zoom · Drag to pan · Click nodes to inspect</div>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.8.5/d3.min.js"></script>
 <script>
-const GRAPH_DATA = {"nodes": [{"id": "analyzer.py", "functions": ["analyze"], "size": 1}, {"id": "graph_builder.py", "functions": ["build_graph"], "size": 1}, {"id": "main.py", "functions": ["main"], "size": 1}, {"id": "test_analyzer.py", "functions": [], "size": 1}], "edges": [{"source": "main.py", "target": "graph_builder.py"}, {"source": "main.py", "target": "analyzer.py"}, {"source": "test_analyzer.py", "target": "analyzer.py"}]};
+const GRAPH_DATA = {"nodes": [{"id": "analyzer.py", "functions": ["analyze"], "size": 1}, {"id": "graph_builder.py", "functions": ["build_graph"], "size": 1}, {"id": "main.py", "functions": ["main"], "size": 1}, {"id": "setup.py", "functions": [], "size": 1}, {"id": "test_analyzer.py", "functions": [], "size": 1}], "edges": [{"source": "main.py", "target": "analyzer.py"}, {"source": "main.py", "target": "graph_builder.py"}, {"source": "test_analyzer.py", "target": "analyzer.py"}]};
 
 document.getElementById('stat-files').textContent = GRAPH_DATA.nodes.length;
 document.getElementById('stat-edges').textContent = GRAPH_DATA.edges.length;
