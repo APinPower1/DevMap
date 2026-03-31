@@ -8,6 +8,7 @@ format expected by the frontend visualizer.
 """
 
 import json
+import os
 import networkx as nx
 
 
@@ -35,18 +36,26 @@ def build_graph(parsed_data: dict) -> dict:
 
     # ------------------------------------------------------------------
     # Build a set of "known" file stems for fast import-resolution lookup.
-    # e.g. "utils.py" → "utils", "pkg/helpers.py" → "helpers"
-    # We store both the stem and the full path so we can map an import
-    # name back to the canonical node id used by the frontend.
+    #
+    # FIX 1: use os.path.basename() instead of split("/")[-1] so that
+    #         Windows backslash paths are handled correctly.
+    #
+    # FIX 2: register __init__.py files under their parent package name
+    #         so that `import vibevoice` resolves to vibevoice/__init__.py
     # ------------------------------------------------------------------
     stem_to_file: dict[str, str] = {}
     for f in files:
-        # Use the filename without extension as the resolvable stem.
-        # pathlib isn't needed; a simple rsplit is sufficient.
-        stem = f.rsplit(".", 1)[0]          # "src/utils.py" → "src/utils"
-        bare = stem.split("/")[-1]          # "src/utils"    → "utils"
+        stem = f.rsplit(".", 1)[0]               # "src/utils.py" -> "src/utils"
+        bare = os.path.basename(stem)            # FIX 1: handles \ and / correctly
         stem_to_file[stem] = f
-        stem_to_file[bare] = f             # also register bare name
+        stem_to_file[bare] = f                   # register bare name too
+
+        # FIX 2: map the package folder name -> __init__.py
+        # so `import vibevoice` resolves to vibevoice/__init__.py
+        if bare == "__init__":
+            pkg_name = os.path.basename(os.path.dirname(f))
+            if pkg_name:
+                stem_to_file[pkg_name] = f
 
     # ------------------------------------------------------------------
     # Construct the NetworkX directed graph
@@ -56,27 +65,27 @@ def build_graph(parsed_data: dict) -> dict:
     # Add one node per file, storing its function list as an attribute
     for f in files:
         funcs = functions.get(f, [])
-        size  = max(len(funcs), 1)          # minimum size of 1
+        size  = max(len(funcs), 1)               # minimum size of 1
         G.add_node(f, functions=funcs, size=size)
 
-    # Add edges: file A → file B when A imports B (and B is in the project)
+    # Add edges: file A -> file B when A imports B (and B is in the project)
     for source_file, raw_imports in imports.items():
         if source_file not in G:
-            continue                        # skip files not listed in "files"
+            continue                             # skip files not listed in "files"
 
-        seen_targets: set[str] = set()      # deduplicate within this source
+        seen_targets: set[str] = set()           # deduplicate within this source
 
         for imp in raw_imports:
             target_file = stem_to_file.get(imp)
 
             if target_file is None:
-                continue                    # stdlib / external — skip silently
+                continue                         # stdlib / external -- skip silently
 
             if target_file == source_file:
-                continue                    # no self-loops
+                continue                         # no self-loops
 
             if target_file in seen_targets:
-                continue                    # no duplicate edges
+                continue                         # no duplicate edges
 
             G.add_edge(source_file, target_file)
             seen_targets.add(target_file)
@@ -102,7 +111,7 @@ def build_graph(parsed_data: dict) -> dict:
 
 
 # ----------------------------------------------------------------------
-# Quick smoke-test — run with:  python graph_builder.py
+# Quick smoke-test -- run with:  python graph_builder.py
 # ----------------------------------------------------------------------
 if __name__ == "__main__":
     sample_data = {
@@ -113,16 +122,14 @@ if __name__ == "__main__":
             "config.py": ["load_config"],
         },
         "imports": {
-            "main.py":   ["utils", "config", "os"],   # os → ignored (stdlib)
-            "utils.py":  ["os", "json"],               # both stdlib → no edges
+            "main.py":   ["utils", "config", "os"],   # os -> ignored (stdlib)
+            "utils.py":  ["os", "json"],               # both stdlib -> no edges
             "config.py": [],                           # no imports
         },
     }
 
     result = build_graph(sample_data)
     print(json.dumps(result, indent=2))
-
-    # ── Additional edge-case tests ──────────────────────────────────────
 
     print("\n--- Edge case: empty parsed_data ---")
     print(json.dumps(build_graph({}), indent=2))
@@ -135,18 +142,30 @@ if __name__ == "__main__":
     }
     print(json.dumps(build_graph(no_funcs), indent=2))
 
-    print("\n--- Edge case: import that doesn't match any project file ---")
-    phantom = {
-        "files": ["app.py"],
-        "functions": {"app.py": ["start"]},
-        "imports": {"app.py": ["ghost_module", "sys"]},
+    print("\n--- Edge case: Windows-style backslash paths ---")
+    win_paths = {
+        "files": ["demo\\app.py", "demo\\utils.py"],
+        "functions": {
+            "demo\\app.py":   ["main"],
+            "demo\\utils.py": ["helper"],
+        },
+        "imports": {
+            "demo\\app.py":   ["utils"],
+            "demo\\utils.py": [],
+        },
     }
-    print(json.dumps(build_graph(phantom), indent=2))
+    print(json.dumps(build_graph(win_paths), indent=2))
 
-    print("\n--- Edge case: duplicate imports in the same file ---")
-    dupes = {
-        "files": ["a.py", "b.py"],
-        "functions": {"a.py": ["foo"], "b.py": ["bar"]},
-        "imports": {"a.py": ["b", "b", "b"], "b.py": []},
+    print("\n--- Edge case: package __init__.py resolution ---")
+    pkg = {
+        "files": ["main.py", "vibevoice\\__init__.py"],
+        "functions": {
+            "main.py":                ["run"],
+            "vibevoice\\__init__.py": [],
+        },
+        "imports": {
+            "main.py":                ["vibevoice"],   # should resolve to __init__.py
+            "vibevoice\\__init__.py": [],
+        },
     }
-    print(json.dumps(build_graph(dupes), indent=2))
+    print(json.dumps(build_graph(pkg), indent=2))
