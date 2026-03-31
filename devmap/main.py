@@ -6,8 +6,8 @@ import subprocess
 import tempfile
 import webbrowser
 
-from analyzer import analyze
-from graph_builder import build_graph
+from devmap.analyzer import analyze
+from devmap.graph_builder import build_graph
 
 
 def is_github_url(path: str) -> bool:

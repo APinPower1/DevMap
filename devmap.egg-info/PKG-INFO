@@ -2,7 +2,7 @@ Metadata-Version: 2.4
 Name: devmap
 Version: 1.0.0
 Summary: Visual Codebase Explorer — turns any project into an interactive dependency graph
-Author: Your Team Name
+Author: Git_Gurus
 Requires-Python: >=3.8
 Requires-Dist: networkx
 Dynamic: author

@@ -13,7 +13,7 @@ def analyze(folder_path: str) -> dict:
         for file in files:
             if file.endswith((".py", ".js", ".ts")):
                 file_path = os.path.join(root, file)
-                rel_path = os.path.relpath(file_path, folder_path)  # FIX: use relative path as key
+                rel_path = os.path.relpath(file_path, folder_path)
                 result["files"].append(rel_path)
                 functions = []
                 imports = []
@@ -35,7 +35,7 @@ def analyze(folder_path: str) -> dict:
                                     imports.append(alias.name.split('.')[0])
                             elif isinstance(node, ast.ImportFrom):
                                 if node.module:
-                                    imports.append(node.module.split('.')[0])
+                                    imports.append(node.module)  # FIXED: removed .split('.')[0]
 
                     # ---- JS / TS FILES ----
                     else:
@@ -60,12 +60,12 @@ def analyze(folder_path: str) -> dict:
                             for m in matches:
                                 imports.append(m.split('/')[0])
 
-                    result["functions"][rel_path] = list(set(functions))  # FIX
-                    result["imports"][rel_path] = list(set(imports))      # FIX
+                    result["functions"][rel_path] = list(set(functions))
+                    result["imports"][rel_path] = list(set(imports))
 
                 except Exception:
-                    result["functions"][rel_path] = []  # FIX
-                    result["imports"][rel_path] = []    # FIX
+                    result["functions"][rel_path] = []
+                    result["imports"][rel_path] = []
 
     return result
 

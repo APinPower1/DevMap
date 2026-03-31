@@ -76,7 +76,11 @@ def build_graph(parsed_data: dict) -> dict:
         seen_targets: set[str] = set()           # deduplicate within this source
 
         for imp in raw_imports:
-            target_file = stem_to_file.get(imp)
+            target_file = (
+                stem_to_file.get(imp)                          # exact match
+                or stem_to_file.get(imp.replace(".", "/"))     # dotted -> path: devmap.analyzer -> devmap/analyzer
+                or stem_to_file.get(imp.split(".")[-1])        # bare last segment: devmap.analyzer -> analyzer
+            )
 
             if target_file is None:
                 continue                         # stdlib / external -- skip silently

@@ -1,4 +1,4 @@
-from analyzer import analyze   # make sure filename is analyzer.py
+from devmap.analyzer import analyze   # make sure filename is analyzer.py
 
 result = analyze(".")
 

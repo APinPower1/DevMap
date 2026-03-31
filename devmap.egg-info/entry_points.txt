@@ -1,2 +1,2 @@
 [console_scripts]
-devmap = main:main
+devmap = devmap.main:main
