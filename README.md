@@ -8,6 +8,7 @@
 
 ## Quick Start
 
+```bash
 # Run on a local project
 devmap ./your-project
 
@@ -86,6 +87,7 @@ When given a GitHub URL, DevMap does a shallow clone into a temporary folder, ru
 - **Drag nodes** — reposition any node to untangle the graph
 
 ### Controls & Shortcuts
+
 | Shortcut | Action |
 |---|---|
 | `/` | Focus the search box |
@@ -103,6 +105,7 @@ devmap https://github.com/user/repo
 DevMap clones the repo with `--depth=1` (fast, no full history), analyzes it, and cleans up the temp folder when done. Requires `git` to be installed.
 
 ### Language Support
+
 | Language | Import Detection | Function Extraction |
 |---|---|---|
 | Python | AST-based (accurate) | Functions + Classes |
@@ -142,9 +145,7 @@ DevMap/
 │       └── template.html
 ├── setup.py
 ├── requirements.txt
-├── README.md
-├── .gitignore
-└── output.html          Generated output (gitignored)
+└── README.md
 ```
 
 ---
@@ -192,3 +193,15 @@ Permission is hereby granted, free of charge, to any person obtaining a copy of 
 The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.
 
 THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+
+---
+
+## AI Assistance
+
+This project was built with significant AI assistance:
+
+- **Claude** (Anthropic) — architecture decisions, core pipeline code, debugging, and documentation
+- **ChatGPT** (OpenAI) — code generation and problem solving
+- **Cursor** (AI-powered editor) — code generation and iterative development
+
+The team designed the overall concept, defined the feature set, integrated all components, tested the tool across multiple real projects, and debugged issues throughout development.
