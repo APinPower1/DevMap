@@ -9,3 +9,4 @@ output.html
 # OS / editor
 .DS_Store
 Thumbs.db
+screenshot*.png
